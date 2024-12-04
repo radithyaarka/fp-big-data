@@ -49,6 +49,11 @@ def recommend():
     except IndexError:
         return jsonify({"error": "Movie not found!"})
 
+    # Fetch details for the searched movie
+    searched_movie_id = movies.iloc[index].id
+    searched_movie_poster = fetch_poster(searched_movie_id)
+
+    # Fetch recommendations
     distance = sorted(list(enumerate(similarity[index])), reverse=True, key=lambda vector: vector[1])
     recommend_movie = []
     recommend_poster = []
@@ -61,6 +66,8 @@ def recommend():
         recommend_rating.append(fetch_rating(movie_id))
 
     return jsonify({
+        "movie": movie,  # Title of the searched movie
+        "poster": searched_movie_poster,  # Poster URL of the searched movie
         "movies": recommend_movie,
         "posters": recommend_poster,
         "ratings": recommend_rating
