@@ -4,7 +4,7 @@
 `docker compose up -d`
 
 ## Run the Streamlit
-`cd streamlit`
+`cd streamlit`<br/>
 `streamlit run app.py`
 
 ## Run the Kafka Producer
