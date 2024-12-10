@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Recommender System</title>
+    <script src="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white font-sans">
+
+    <!-- Header Section -->
+    <header class="bg-purple-800 text-white py-8 text-center">
+        <h1 class="text-4xl font-semibold">Movie Recommender System</h1>
+        <p class="mt-2 text-lg text-gray-300">Find similar movies based on your favorite choice</p>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container mx-auto px-4 py-12">
+
+        <!-- Search Bar -->
+        <div class="text-center mb-8">
+            <label for="movieSearch" class="text-lg text-gray-400 mb-2 block">Search for a movie:</label>
+            <input id="movieSearch" type="text" placeholder="Start typing a movie name..." class="px-4 py-2 w-80 text-lg text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" list="movieList">
+            <datalist id="movieList">
+                <!-- Movie suggestions will be populated here dynamically -->
+                {% for movie in movies %}
+                    <option value="{{ movie }}">{{ movie }}</option>
+                {% endfor %}
+            </datalist>
+            <button id="searchBtn" class="mt-4 px-6 py-3 bg-purple-700 text-white text-lg rounded-md hover:bg-purple-600 transition duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                Show Recommendations
+            </button>
+        </div>
+
+        <!-- Movie Poster Section -->
+        <div id="searchedMovie" class="hidden text-center mb-8">
+            <h2 class="text-2xl font-semibold mb-4" id="searchedMovieTitle"></h2>
+            <img id="searchedMoviePoster" class="w-48 h-auto mx-auto rounded-lg shadow-lg" alt="Movie Poster">
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loading" class="hidden text-center mt-10">
+            <img src="https://i.gifer.com/4V0b.gif" alt="Loading..." class="w-16 mx-auto animate-spin">
+            <p class="text-gray-400">Loading recommendations...</p>
+        </div>
+
+        <!-- Recommendations Section -->
+        <div id="recommendations" class="flex flex-wrap justify-center gap-6 mt-8">
+            <!-- Recommendations will be displayed here -->
+        </div>
+    </div>
+
+    <!-- JavaScript to Handle Movie Search and Form Submission -->
+    <script>
+        document.getElementById("searchBtn").addEventListener("click", function(event) {
+            event.preventDefault();
+            const movieSearch = document.getElementById("movieSearch").value;
+
+            if (!movieSearch) {
+                alert("Please enter a movie name.");
+                return;
+            }
+
+            // Show loading spinner
+            document.getElementById("loading").classList.remove('hidden');
+            const recommendationsDiv = document.getElementById("recommendations");
+            recommendationsDiv.innerHTML = '';  // Clear previous recommendations
+            const searchedMovieDiv = document.getElementById("searchedMovie");
+            searchedMovieDiv.classList.add("hidden"); // Hide searched movie section
+
+            // Fetch data from backend
+            fetch(`/recommend?movie=${movieSearch}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Hide loading spinner
+                    document.getElementById("loading").classList.add('hidden');
+
+                    // Show searched movie
+                    if (data.movie) {
+                        document.getElementById("searchedMovieTitle").textContent = data.movie;
+                        document.getElementById("searchedMoviePoster").src = data.poster;
+                        searchedMovieDiv.classList.remove("hidden");
+                    }
+
+                    // Display recommendations
+                    data.movies.forEach((movie, index) => {
+                        const recDiv = document.createElement("div");
+                        recDiv.classList.add("bg-gray-800", "p-4", "rounded-lg", "w-64", "text-center", "shadow-lg", "hover:shadow-xl", "transition", "duration-300");
+
+                        // Add movie poster
+                        const img = document.createElement("img");
+                        img.src = data.posters[index];
+                        img.classList.add("w-full", "rounded-lg", "mb-4");
+                        recDiv.appendChild(img);
+
+                        // Add movie title
+                        const title = document.createElement("div");
+                        title.classList.add("font-semibold", "text-lg", "text-white");
+                        title.textContent = movie;
+                        recDiv.appendChild(title);
+
+                        // Add rating
+                        const rating = document.createElement("div");
+                        rating.classList.add("mt-2", "text-gray-400", "text-sm");
+                        rating.textContent = `Rating: ${data.ratings[index]}`;
+                        recDiv.appendChild(rating);
+
+                        // Add "More about" button
+                        const button = document.createElement("button");
+                        button.textContent = `More about ${movie}`;
+                        button.classList.add("mt-4", "p-2", "bg-teal-500", "text-white", "rounded-md", "w-full", "hover:bg-teal-400", "transition", "duration-300");
+                        recDiv.appendChild(button);
+
+                        recommendationsDiv.appendChild(recDiv);
+                    });
+                })
+                .catch(error => {
+                    // Hide loading spinner and show error message
+                    document.getElementById("loading").classList.add('hidden');
+                    console.error('Error fetching recommendations:', error);
+                    alert('An error occurred while fetching recommendations.');
+                });
+        });
+    </script>
+
+</body>
+</html>

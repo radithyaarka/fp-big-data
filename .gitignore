@@ -1,0 +1,22 @@
+# Ignore pickle files for the movie recommendation system
+similarity.pkl
+movies_list.pkl
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment folder
+venv/
+
+# Environment variables file
+.env
+
+# Logs and other system files
+*.log
+.DS_Store
+
+# IDE specific files
+.vscode/
+.idea/
