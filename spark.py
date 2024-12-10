@@ -87,9 +87,6 @@ def get_recommendations(title, cosine_sim=cosine_sim):
     # Return the top 10 most similar movies
     return pandas_df.iloc[movie_indices]
 
-# Example usage
-recommended_movies = get_recommendations("Iron Man")  # Replace with an actual movie title
-print(recommended_movies)
 
 # Save the model and other artifacts
 pickle.dump(pandas_df, open("movies_list.pkl", "wb"))
