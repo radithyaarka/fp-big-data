@@ -3,6 +3,7 @@ import json
 import time
 import pandas as pd
 from datetime import datetime
+import os
 
 def json_serializer(data):
     return json.dumps(data).encode('utf-8')
@@ -12,8 +13,15 @@ producer = KafkaProducer(
     value_serializer=json_serializer
 )
 
+# Get the current script's directory and read the CSV file with correct path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+csv_path = os.path.join(current_dir, 'dataset.csv')
+
+# Print the path being used
+print(f"Attempting to read CSV from: {csv_path}")
+
 # Read the CSV file
-df = pd.read_csv('dataset.csv')
+df = pd.read_csv(csv_path)
 
 # Keep track of processed records in memory
 processed_records = set()
@@ -32,7 +40,6 @@ def stream_data():
         data = row.to_dict()
         
         # Create a unique identifier using just the title
-        # Modify this based on the actual columns in your CSV
         record_id = str(data.get('title', ''))
         
         if record_id not in processed_records:
@@ -51,4 +58,10 @@ def stream_data():
     print(f"Total records handled: {total_processed + total_skipped}")
 
 if __name__ == "__main__":
-    stream_data()
+    try:
+        stream_data()
+    except FileNotFoundError:
+        print(f"Error: Could not find dataset.csv at {csv_path}")
+        print(f"Current working directory: {os.getcwd()}")
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")

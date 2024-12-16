@@ -17,13 +17,11 @@
 
     <!-- Main Container -->
     <div class="container mx-auto px-4 py-12">
-
         <!-- Search Bar -->
         <div class="text-center mb-8">
             <label for="movieSearch" class="text-lg text-gray-400 mb-2 block">Search for a movie:</label>
             <input id="movieSearch" type="text" placeholder="Start typing a movie name..." class="px-4 py-2 w-80 text-lg text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" list="movieList">
             <datalist id="movieList">
-                <!-- Movie suggestions will be populated here dynamically -->
                 {% for movie in movies %}
                     <option value="{{ movie }}">{{ movie }}</option>
                 {% endfor %}
@@ -36,7 +34,10 @@
         <!-- Movie Poster Section -->
         <div id="searchedMovie" class="hidden text-center mb-8">
             <h2 class="text-2xl font-semibold mb-4" id="searchedMovieTitle"></h2>
-            <img id="searchedMoviePoster" class="w-48 h-auto mx-auto rounded-lg shadow-lg" alt="Movie Poster">
+            <img id="searchedMoviePoster" class="w-48 h-auto mx-auto rounded-lg shadow-lg mb-4" alt="Movie Poster">
+            <a id="searchedMovieImdb" href="#" target="_blank" class="inline-block px-6 py-2 bg-yellow-500 text-black rounded-md hover:bg-yellow-400 transition duration-300">
+                View movie details
+            </a>
         </div>
 
         <!-- Loading Spinner -->
@@ -70,7 +71,7 @@
             searchedMovieDiv.classList.add("hidden"); // Hide searched movie section
 
             // Fetch data from backend
-            fetch(`/recommend?movie=${movieSearch}`)
+            fetch(`/recommend?movie=${encodeURIComponent(movieSearch)}`)
                 .then(response => response.json())
                 .then(data => {
                     // Hide loading spinner
@@ -80,11 +81,12 @@
                     if (data.movie) {
                         document.getElementById("searchedMovieTitle").textContent = data.movie;
                         document.getElementById("searchedMoviePoster").src = data.poster;
+                        document.getElementById("searchedMovieImdb").href = `https://www.imdb.com/title/${data.imdb_id}`;
                         searchedMovieDiv.classList.remove("hidden");
                     }
 
-                    // Display recommendations
-                    data.movies.forEach((movie, index) => {
+                    // Display recommendations (limited to 5)
+                    data.movies.slice(0, 5).forEach((movie, index) => {
                         const recDiv = document.createElement("div");
                         recDiv.classList.add("bg-gray-800", "p-4", "rounded-lg", "w-64", "text-center", "shadow-lg", "hover:shadow-xl", "transition", "duration-300");
 
@@ -106,10 +108,12 @@
                         rating.textContent = `Rating: ${data.ratings[index]}`;
                         recDiv.appendChild(rating);
 
-                        // Add "More about" button
-                        const button = document.createElement("button");
-                        button.textContent = `More about ${movie}`;
-                        button.classList.add("mt-4", "p-2", "bg-teal-500", "text-white", "rounded-md", "w-full", "hover:bg-teal-400", "transition", "duration-300");
+                        // Add IMDB link button
+                        const button = document.createElement("a");
+                        button.href = `https://www.imdb.com/title/${data.imdb_ids[index]}`;
+                        button.target = "_blank";
+                        button.textContent = "View movie details";
+                        button.classList.add("mt-4", "p-2", "bg-yellow-500", "text-black", "rounded-md", "block", "hover:bg-yellow-400", "transition", "duration-300");
                         recDiv.appendChild(button);
 
                         recommendationsDiv.appendChild(recDiv);

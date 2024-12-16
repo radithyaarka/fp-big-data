@@ -1,117 +1,74 @@
-import streamlit as st
-import pandas as pd
-from kafka import KafkaConsumer
-import json
-from minio import Minio
-from datetime import datetime
-import io
-import time
+from flask import Flask, render_template, request, jsonify
+import pickle
+import requests
 
-# Initialize MinIO client
-minio_client = Minio(
-    "minio:9000",
-    access_key="minio_access_key",
-    secret_key="minio_secret_key",
-    secure=False
-)
+app = Flask(__name__, template_folder='frontend')
 
-# Initialize Kafka consumer
-consumer = KafkaConsumer(
-    'movies-topic',
-    bootstrap_servers=['kafka:29092'],
-    auto_offset_reset='latest',
-    enable_auto_commit=True,
-    value_deserializer=lambda x: json.loads(x.decode('utf-8'))
-)
-
-def load_existing_titles_from_minio():
-    """Load all existing movie titles from MinIO files"""
-    existing_titles = set()
+def fetch_movie_details(movie_id):
+    url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key=c7ec19ffdd3279641fb606d19ceb9bb1&language=en-US"
     try:
-        objects = minio_client.list_objects('movies')
-        for obj in objects:
-            try:
-                data = minio_client.get_object('movies', obj.object_name)
-                df = pd.read_csv(io.BytesIO(data.read()))
-                existing_titles.update(df['title'].unique())
-            except Exception as e:
-                continue
-        return existing_titles
-    except Exception as e:
-        return set()
-
-# Initialize session state
-if 'movies' not in st.session_state:
-    st.session_state.movies = []
-    st.session_state.last_save_time = time.time()
-    st.session_state.processed_titles = load_existing_titles_from_minio()
-
-def save_to_minio(data_list):
-    df = pd.DataFrame(data_list).drop_duplicates(subset=['title'])
-    csv_buffer = io.StringIO()
-    df.to_csv(csv_buffer, index=False)
-    
-    filename = f"streamed_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    
-    minio_client.put_object(
-        "movies",
-        filename,
-        io.BytesIO(csv_buffer.getvalue().encode()),
-        len(csv_buffer.getvalue())
-    )
-    st.success(f"Saved batch to MinIO: {filename}")
-
-# Streamlit app
-st.title('Movie Stream Analysis')
-
-# Create columns for metrics
-col1, col2, col3 = st.columns(3)
-
-# Initialize placeholder for the chart
-chart_placeholder = st.empty()
-
-# Initialize row for metrics
-metrics_row = st.empty()
-
-# Main loop
-try:
-    for message in consumer:
-        movie = message.value
-        movie_title = movie.get('title', '')
+        data = requests.get(url).json()
+        poster_path = data.get('poster_path', None)
+        poster_url = f"https://image.tmdb.org/t/p/w500/{poster_path}" if poster_path else "https://via.placeholder.com/500x750.png?text=No+Image"
+        rating = data.get('vote_average', 'N/A')
         
-        if movie_title not in st.session_state.processed_titles:
-            st.session_state.movies.append(movie)
-            st.session_state.processed_titles.add(movie_title)
-            
-            current_time = time.time()
-            if current_time - st.session_state.last_save_time >= 60:
-                if st.session_state.movies:
-                    save_to_minio(st.session_state.movies)
-                    st.session_state.last_save_time = current_time
-                    st.session_state.movies = []
-            
-            # Update metrics
-            with metrics_row.container():
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Total Unique Movies", len(st.session_state.processed_titles))
-                with col2:
-                    if st.session_state.movies:
-                        avg_rating = sum(float(m['vote_average']) for m in st.session_state.movies) / len(st.session_state.movies)
-                        st.metric("Average Rating (Current Batch)", f"{avg_rating:.2f}")
-                with col3:
-                    if st.session_state.movies:
-                        avg_votes = sum(int(m['vote_count']) for m in st.session_state.movies) / len(st.session_state.movies)
-                        st.metric("Average Votes (Current Batch)", f"{avg_votes:.0f}")
-            
-            # Update chart for current batch
-            if st.session_state.movies:
-                df = pd.DataFrame(st.session_state.movies)
-                chart_placeholder.line_chart(df['vote_average'])
+        # Fetch IMDB ID
+        imdb_id = data.get('imdb_id', '')
+        return poster_url, rating, imdb_id
+    except requests.exceptions.RequestException:
+        return "https://via.placeholder.com/500x750.png?text=Error+Fetching+Image", 'N/A', ''
 
-except Exception as e:
-    st.error(f"An error occurred: {str(e)}")
-    
-finally:
-    if st.session_state.movies:
-        save_to_minio(st.session_state.movies)
+# Load movie data and similarity matrix
+try:
+    movies = pickle.load(open("movies_list.pkl", 'rb'))
+    similarity = pickle.load(open("similarity.pkl", 'rb'))
+except FileNotFoundError:
+    print("Files not found. Please check the files.")
+    exit()
+
+movies_list = movies['title'].values
+
+@app.route('/')
+def home():
+    return render_template('index.html', movies=movies_list)
+
+@app.route('/recommend', methods=['GET'])
+def recommend():
+    movie = request.args.get('movie')
+    try:
+        index = movies[movies['title'] == movie].index[0]
+    except IndexError:
+        return jsonify({"error": "Movie not found!"})
+
+    # Fetch details for the searched movie
+    searched_movie_id = movies.iloc[index].id
+    searched_movie_poster, _, searched_movie_imdb = fetch_movie_details(searched_movie_id)
+
+    # Fetch recommendations
+    distance = sorted(list(enumerate(similarity[index])), reverse=True, key=lambda vector: vector[1])
+    recommend_movie = []
+    recommend_poster = []
+    recommend_rating = []
+    recommend_imdb = []
+
+    for i in distance[1:11]:
+        movie_id = movies.iloc[i[0]].id
+        poster_url, rating, imdb_id = fetch_movie_details(movie_id)
+        
+        recommend_movie.append(movies.iloc[i[0]].title)
+        recommend_poster.append(poster_url)
+        recommend_rating.append(rating)
+        recommend_imdb.append(imdb_id)
+
+    return jsonify({
+        "movie": movie,
+        "poster": searched_movie_poster,
+        "imdb_id": searched_movie_imdb,
+        "movies": recommend_movie,
+        "posters": recommend_poster,
+        "ratings": recommend_rating,
+        "imdb_ids": recommend_imdb
+    })
+
+if __name__ == "__main__":
+    app.run(debug=True)
