@@ -47,7 +47,19 @@ User dapat melakukan query untuk melihat data yang diinginkan menggunakan dbeave
 ![trino](https://github.com/user-attachments/assets/7b4e9a36-648c-4693-a170-680d1a38be09)
 ![dbeaverquery](https://github.com/user-attachments/assets/78bb40db-b558-400c-8934-2e1173c67376)
 
+### Automation Script
+Ketika file `automation.py` dijalankan, maka program akan otomatis menjalankan mulai dari producer kafka, dashboard streamlit, proses spark, dan streamlit
+```
+    producer_thread = threading.Thread(target=run_producer)
+    streamlit_thread = threading.Thread(target=run_streamlit)
+    spark_thread = threading.Thread(target=schedule_spark)
+    pkl_monitor_thread = threading.Thread(target=monitor_pkl_files)
+```
+
 ## UI Client
 - Client dapat mencari film yang diinginkan, lalu klik Show Recommendations.
 - Program akan menampilkan film yang dicari, beserta film-film lain yang direkomendasikan karena serupa dengan film yang dicari
-![WhatsApp Image 2024-12-11 at 08 19 06_d0752509](https://github.com/user-attachments/assets/e813303c-0094-428d-a2b8-07e84d0a8277)
+![WhatsApp Image 2024-12-16 at 15 17 01_d0db5dd3](https://github.com/user-attachments/assets/ea5edd77-7ae0-4e25-a3a8-609a7587d366)
+![WhatsApp Image 2024-12-16 at 15 17 13_ad3660c0](https://github.com/user-attachments/assets/8eaa61c9-6ee0-42be-885c-d44ade7d0542)
+- Ketika user klik "View movie details", user akan diarahkan ke website IMDB untuk detail film yang dicari
+![WhatsApp Image 2024-12-16 at 15 18 55_8807f132](https://github.com/user-attachments/assets/fc1b2236-2a59-4019-a0a9-e8a68ec8d544)
